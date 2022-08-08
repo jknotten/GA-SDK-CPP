@@ -9,6 +9,7 @@
 #include "GALogger.h"
 #include "GAUtilities.h"
 #include "GAValidator.h"
+#include "GAThreading.h"
 #include <future>
 #include <utility>
 #include "rapidjson/stringbuffer.h"
@@ -64,6 +65,24 @@ namespace gameanalytics
             s->len = new_len;
 
             return size*nmemb;
+        }
+    
+        int checkForThreadQuit(void *clientp,
+                               double dltotal,
+                               double dlnow,
+                               double ultotal,
+                               double ulnow)
+    
+        {
+            if( threading::GAThreading::isThreadEnding() )
+            {
+                if( threading::GAThreading::threadEndingDurationMs() > 1000 )
+                {
+                    return 1;
+                }
+            }
+            
+            return 0;
         }
 
         bool GAHTTPApi::_destroyed = false;
@@ -151,6 +170,9 @@ namespace gameanalytics
 
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+            curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, &checkForThreadQuit);
+            curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, NULL);
 #if USE_TIZEN
             connection_h connection;
             int conn_err;
@@ -303,6 +325,10 @@ namespace gameanalytics
 
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+            curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, &checkForThreadQuit);
+            curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, NULL);
+
 #if USE_TIZEN
             connection_h connection;
             int conn_err;
@@ -512,6 +538,10 @@ namespace gameanalytics
 
                 curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
                 curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+                curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+                curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, &checkForThreadQuit);
+                curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, NULL);
+
 #if USE_TIZEN
                 connection_h connection;
                 int conn_err;

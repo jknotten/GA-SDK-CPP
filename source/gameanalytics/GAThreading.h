@@ -41,6 +41,8 @@ namespace gameanalytics
             static bool isThreadFinished();
 
             static bool isThreadEnding();
+            
+            static int  threadEndingDurationMs();  // Milliseconds since thread was asked to shutdown.
 
          private:
 
@@ -117,6 +119,7 @@ namespace gameanalytics
             };
 
             static std::atomic<bool> _endThread;
+            static std::atomic_llong _endThreadTime;
             static std::atomic_llong _threadDeadline;
             static std::unique_ptr<State> state;
 

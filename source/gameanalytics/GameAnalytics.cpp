@@ -1036,6 +1036,10 @@ namespace gameanalytics
                 state::GAState::endSessionAndStopQueue(true);
             });
 
+            // This will cause the HTTP transfers to abort, but the end of
+            // session events will still be written to the SQL database.
+            threading::GAThreading::endThread();
+
 #if !USE_TIZEN
             threading::GAThreading::waitThreadFinished();
 #endif

@@ -18,6 +18,7 @@ namespace gameanalytics
         // static members
         std::atomic<bool> GAThreading::_endThread(false);
         std::atomic_llong GAThreading::_threadDeadline(GAThreading::getTimeInNs());
+        std::atomic_llong GAThreading::_endThreadTime(0);
         std::unique_ptr<GAThreading::State> GAThreading::state(new GAThreading::State());
 
         void GAThreading::scheduleTimer(double interval, const Block& callback)
@@ -64,7 +65,11 @@ namespace gameanalytics
 
         void GAThreading::endThread()
         {
+            if( _endThread ) return;
+            
             _endThread = true;
+            _endThreadTime = getTimeInNs();
+            
             if( state )
             {
                 state->cv.notify_one();
@@ -88,6 +93,14 @@ namespace gameanalytics
         {
             return _endThread;
         }
+    
+        int GAThreading::threadEndingDurationMs()
+        {
+            if( !_endThread ) return 0;
+            
+            return (getTimeInNs() - _endThreadTime) / 1000000.0;
+        }
+
 
         bool GAThreading::getNextBlock(TimedBlock& timedBlock)
         {

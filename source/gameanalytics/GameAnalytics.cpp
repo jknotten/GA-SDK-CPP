@@ -1037,10 +1037,7 @@ namespace gameanalytics
             });
 
 #if !USE_TIZEN
-            while (!threading::GAThreading::isThreadFinished())
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            threading::GAThreading::waitThreadFinished();
 #endif
         }
         catch (const std::exception&)
@@ -1348,10 +1345,7 @@ namespace gameanalytics
             {
                 onSuspend();
 
-                while(!threading::GAThreading::isThreadFinished())
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
+                threading::GAThreading::waitThreadFinished();
             }
             else
             {

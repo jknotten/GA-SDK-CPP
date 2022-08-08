@@ -36,6 +36,8 @@ namespace gameanalytics
 
             static void endThread();
 
+            static void waitThreadFinished();
+            
             static bool isThreadFinished();
 
             static bool isThreadEnding();
@@ -103,17 +105,14 @@ namespace gameanalytics
                 ~State()
                 {
                     endThread();
-
-                    while (!isThreadFinished())
-                    {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
+                    handle.wait();
                 }
 
                 TimedBlocks blocks;
                 TimedBlock scheduledBlock;
                 bool hasScheduledBlockRun;
                 std::mutex mutex;
+                std::condition_variable cv;
                 std::future<void> handle;
             };
 

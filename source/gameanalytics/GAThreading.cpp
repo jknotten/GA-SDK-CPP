@@ -26,18 +26,21 @@ namespace gameanalytics
             {
                 return;
             }
-            std::lock_guard<std::mutex> lock(state->mutex);
-
-            if(state->hasScheduledBlockRun)
             {
-                state->scheduledBlock = { callback, std::chrono::steady_clock::now() + std::chrono::milliseconds(static_cast<int>(1000 * interval)) };
-                state->hasScheduledBlockRun = false;
-                GAThreading::_threadDeadline = GAThreading::getTimeInNs(interval + 2.0);
-                if(state->isThreadFinished())
+                std::lock_guard<std::mutex> lock(state->mutex);
+
+                if(state->hasScheduledBlockRun)
                 {
-                    state->setThread(GAThreading::thread_routine, GAThreading::_endThread, GAThreading::_threadDeadline);
+                    state->scheduledBlock = { callback, std::chrono::steady_clock::now() + std::chrono::milliseconds(static_cast<int>(1000 * interval)) };
+                    state->hasScheduledBlockRun = false;
+                    GAThreading::_threadDeadline = GAThreading::getTimeInNs(interval + 2.0);
+                    if(state->isThreadFinished())
+                    {
+                        state->setThread(GAThreading::thread_routine, GAThreading::_endThread, GAThreading::_threadDeadline);
+                    }
                 }
             }
+            state->cv.notify_one();
         }
 
         void GAThreading::performTaskOnGAThread(const Block& taskBlock)
@@ -46,19 +49,34 @@ namespace gameanalytics
             {
                 return;
             }
-            std::lock_guard<std::mutex> lock(state->mutex);
-            state->blocks.push_back({ taskBlock, std::chrono::steady_clock::now()} );
-            std::push_heap(state->blocks.begin(), state->blocks.end());
-            GAThreading::_threadDeadline = GAThreading::getTimeInNs(10.0);
-            if(state->isThreadFinished())
             {
-                state->setThread(GAThreading::thread_routine, GAThreading::_endThread, GAThreading::_threadDeadline);
+                std::lock_guard<std::mutex> lock(state->mutex);
+                state->blocks.push_back({ taskBlock, std::chrono::steady_clock::now()} );
+                std::push_heap(state->blocks.begin(), state->blocks.end());
+                GAThreading::_threadDeadline = GAThreading::getTimeInNs(10.0);
+                if(state->isThreadFinished())
+                {
+                    state->setThread(GAThreading::thread_routine, GAThreading::_endThread, GAThreading::_threadDeadline);
+                }
             }
+            state->cv.notify_one();
         }
 
         void GAThreading::endThread()
         {
             _endThread = true;
+            if( state )
+            {
+                state->cv.notify_one();
+            }
+        }
+    
+        void GAThreading::waitThreadFinished()
+        {
+            if( state )
+            {
+                state->handle.wait();
+            }
         }
 
         bool GAThreading::isThreadFinished()
@@ -151,7 +169,10 @@ namespace gameanalytics
                         break;
                     }
                     runBlocks();
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    
+                    std::unique_lock<std::mutex> lock(state->mutex);
+                    if( endThread ) break;
+                    state->cv.wait_for( lock, std::chrono::nanoseconds( threadDeadline - getTimeInNs() ) ) ;
                 }
 
                 // run any last blocks added
